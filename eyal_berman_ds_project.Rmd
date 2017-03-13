@@ -59,7 +59,7 @@ africa_countries <- africa_development$Country.Name %>% unique()
 ```{r}
 joined_table <- create_joined_table()
 african_joined_table <- joined_table %>% filter(Country.Name.x %in% africa_countries)
-cat(paste("The size of the initial data is",nrow(african_joined_table),"with",ncol(african_joined_table),                                        "features"))
+cat(paste("  The size of the initial data is",nrow(african_joined_table),"rows with",ncol(african_joined_table),                                        "features"))
 ```
 
 # Data Preperation #
@@ -95,7 +95,7 @@ suppressWarnings(african_joined_table.imputed$Mort_Rate_under_5 <-
   as.numeric(paste(african_joined_table.imputed$Mort_Rate_under_5)))
  # Remove NA rows
 african_joined_table.imputed <- african_joined_table.imputed %>% filter(Mort_Rate_under_5 >= 0)
-cat(paste("The final size of the data is",nrow(african_joined_table),"with",ncol(african_joined_table),                                        "features"))
+cat(paste("The final size of the data is",nrow(african_joined_table),"rows with",ncol(african_joined_table),                                        "features"))
 ```
 
 ## Randomly split the data ##
