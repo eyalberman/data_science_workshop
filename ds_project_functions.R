@@ -82,3 +82,22 @@ train_predict_and_evaluate_model <-function(test, ntree, nfeatures){
   rmse_prediction <- rmse(compare_df$prediction, compare_df$test.Mort_Rate_under_5)
   cat(paste("rMSE for",ntree,"trees and",nfeatures,"features is",round(rmse_prediction,3),"\n"))
 }
+
+print_model_parameter_testing_results <- function() {
+  cat("  rMSE for 600 trees and 100 features is 10.051
+  rMSE for 600 trees and 30 features is 9.689 
+  rMSE for 600 trees and 20 features is 10.129 
+  rMSE for 600 trees and 10 features is 10.31 
+  rMSE for 300 trees and 24 features is 9.837 
+  rMSE for 300 trees and 30 features is 9.815 
+  rMSE for 300 trees and 20 features is 10.239 
+  rMSE for 300 trees and 10 features is 10.259 
+  rMSE for 150 trees and 24 features is 10.131 
+  rMSE for 150 trees and 30 features is 9.728 
+  rMSE for 150 trees and 20 features is 10.16 
+  rMSE for 150 trees and 10 features is 10.334 
+  rMSE for 50 trees and 24 features is 10.099 
+  rMSE for 50 trees and 30 features is 10.431 
+  rMSE for 50 trees and 20 features is 11.005 
+  rMSE for 50 trees and 10 features is 11.248 ")
+}

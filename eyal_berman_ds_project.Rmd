@@ -3,9 +3,10 @@
 title: "Eyal Berman - Workshop in Data Science"
 output: html_notebook
 ---
+##### PLEASE SET THE WORKING FOLDER TO THE FOLDER ALL THE FILES ARE IN BEFORE RUNNING THE SCRIPT#####
 
 ```{r}
-skip_computation <- FALSE
+skip_computation <- TRUE
 
 list.of.packages <-
   c(
@@ -13,9 +14,9 @@ list.of.packages <-
   "dplyr",
   "tidyr",
   "randomForest",
-  "caret",
+  # "caret",
   "hydroGOF",
-  "ETLUtils",
+  # "ETLUtils",
   "reshape"
   )
   new.packages <-
@@ -23,15 +24,14 @@ list.of.packages <-
   if (length(new.packages)){
     install.packages(new.packages)
   }
-  invisible(lapply(list.of.packages, require, character.only = TRUE))
+  lapply(list.of.packages, require, character.only = TRUE)
   source('ds_project_functions.R')
   
 ```
 
 
-Now, start loading features into the dataset:
 
-Load tables
+## Loading the data tables ##
 ```{r}
 target_data <- read.csv("WorldBank/Millennium_development_goals.csv")
 poverty <- read.csv('WorldBank/poverty_and_equity.csv', na.strings = c('..',''))
@@ -41,7 +41,7 @@ africa_development <- read.csv('WorldBank/africa_development_indicators.csv', na
 health_nutrition <- read.csv('WorldBank/health_and_nutrition.csv', na.strings = c('..',''))
 ```
 
-Prepare tables for training (transpose + fix values)
+## Preparing the tables for training (transpose + fix values) ##
 ```{r}
 target_data <- prepare_target_data(target_data)
 poverty <- prepare_data_df_to_pivot(poverty)
@@ -55,10 +55,11 @@ africa_countries <- africa_development$Country.Name %>% unique()
 ```
 
 
-Join the tables into one big dataset, then filter it to include African countries only
+## Joining the tables into one big dataset, then filter it to include African countries only ##
 ```{r}
 joined_table <- create_joined_table()
 african_joined_table <- joined_table %>% filter(Country.Name.x %in% africa_countries)
+cat(paste("The size of the initial data is",nrow(african_joined_table),"with",ncol(african_joined_table),                                        "features"))
 ```
 
 # Data Preperation #
@@ -76,10 +77,13 @@ african_joined_table <- african_joined_table[ ,  -ColumnsToRemoveNumbers]
 ```
 
 ##Remove columns with lots of null values##
+I've tried several options (0.5, 0.9, 0.1), and found out the removing columns with more than 30% null values
+works best
 ```{r}
-african_joined_table_orig <- african_joined_table
-african_joined_table <- remove_large_null_columns(african_joined_table, 0.3)
+african_joined_table_with_null <- african_joined_table
+african_joined_table <-remove_large_null_columns(african_joined_table, 0.3)
 ```
+
 
 ##Prepare data for model training##
 Impute null values, removing rows with no observation data
@@ -91,6 +95,7 @@ suppressWarnings(african_joined_table.imputed$Mort_Rate_under_5 <-
   as.numeric(paste(african_joined_table.imputed$Mort_Rate_under_5)))
  # Remove NA rows
 african_joined_table.imputed <- african_joined_table.imputed %>% filter(Mort_Rate_under_5 >= 0)
+cat(paste("The final size of the data is",nrow(african_joined_table),"with",ncol(african_joined_table),                                        "features"))
 ```
 
 ## Randomly split the data ##
@@ -109,23 +114,27 @@ test <- african_joined_table.imputed[-train_ind, ]
 if (skip_computation) {
     rf.model <- readRDS("./final_rf_model.rds")
 } else {
-  rf.model <-train_model(600,20)
+  rf.model <-train_model(300,round(sqrt(length(train))))
 }
 
 # saveRDS(rf.model, "./final_rf_model.rds")
 ```
-## Testing the model ##
-The most important features are:
+## Evaluating the model ##
+The most important features, based on the %incMSE are:
 ```{r, fig.width = 6}
 prediction <- predict(rf.model, test)
 compare_df <- data.frame(prediction,test$Mort_Rate_under_5, prediction - test$Mort_Rate_under_5)
 varImpPlot(rf.model,type=1)
 ```
-This chart shows the IncNodePurity, which stands for "Increased Node Purity" - 
+*%incMSE = The increase in MSE the would have happened if we permutated the feature. The larger the number, the more the feature contributes to the accuracy of the table
 
+The following shows the IncNodePurity
 ```{r, fig.width=6}
 varImpPlot(rf.model,type=2)
 ```
+ *IncNodePurity = The average increase in node purity in the tree splits featuring the feature
+ 
+It is clear that although these 2 metrics measures different things, they both find roughly the same features as the most important ones ##
 
 ##rMSE##
 ```{r}
@@ -136,65 +145,33 @@ cat(" rMSE is",round(rmse_prediction,2),"\n","mean_mortality_rate is ",round(mea
     "median_mortality_rate is ",round(median_mortality_rate,2))
 
 ```
+
 #Fine Tune the Model Parameters#
 ```{r}
 if (skip_computation) {
-  cat("This results of this is that the best combination is TODO\n")
+  print_model_parameter_testing_results()
 } else {
-train_predict_and_evaluate_model(test,600,46)
 train_predict_and_evaluate_model(test,600,100)
 train_predict_and_evaluate_model(test,600,30)
 train_predict_and_evaluate_model(test,600,20)
 train_predict_and_evaluate_model(test,600,10)
-train_predict_and_evaluate_model(test,300,46)
+train_predict_and_evaluate_model(test,300,24)
 train_predict_and_evaluate_model(test,300,30)
 train_predict_and_evaluate_model(test,300,20)
 train_predict_and_evaluate_model(test,300,10)
-train_predict_and_evaluate_model(test,150,46)
+train_predict_and_evaluate_model(test,150,24)
 train_predict_and_evaluate_model(test,150,30)
 train_predict_and_evaluate_model(test,150,20)
 train_predict_and_evaluate_model(test,150,10)
-train_predict_and_evaluate_model(test,50,100)
-train_predict_and_evaluate_model(test,50,46)
+train_predict_and_evaluate_model(test,50,24)
 train_predict_and_evaluate_model(test,50,30)
 train_predict_and_evaluate_model(test,50,20)
 train_predict_and_evaluate_model(test,50,10)
 }
 ```
-Test the data for without removing null columns:
-```{r}
-african_joined_table_orig$Country.Code <- as.factor(african_joined_table_orig$Country.Code)
-african_joined_table_orig.imputed <- na.roughfix(african_joined_table_orig)
-suppressWarnings(african_joined_table.imputed$Mort_Rate_under_5 <-       
-  as.numeric(paste(african_joined_table.imputed$Mort_Rate_under_5)))
- # Remove NA rows
-african_joined_table.imputed <- african_joined_table.imputed %>% filter(Mort_Rate_under_5 >= 0)
+As we can see, the results don't differ all that much, but choosing the number of features to be around the square root of the total of number of features does present the best results. For example, using 100 as the number of feature consistently perform worse then using 24
 
-smp_size <- floor(0.8 * nrow(african_joined_table.imputed))
-
-set.seed(123)
-train_ind <- sample(seq_len(nrow(african_joined_table.imputed)), size = smp_size)
-
-train <- african_joined_table.imputed[train_ind, ]
-test <- african_joined_table.imputed[-train_ind, ]
-
-if (skip_computation) {
-    rf.model <- readRDS("./final_rf_model_with_null.rds")
-} else {
-  rf.model <-train_model(600,20)
-}
-rmse_prediction <- rmse(compare_df$prediction, compare_df$test.Mort_Rate_under_5)
-mean_mortality_rate <- mean(african_joined_table.imputed$Mort_Rate_under_5)
-median_mortality_rate <- median(african_joined_table.imputed$Mort_Rate_under_5)
-cat(" rMSE without removing null columns is",round(rmse_prediction,2),"\n","mean_mortality_rate is ",round(mean_mortality_rate,2),"\n",
-    "median_mortality_rate is ",round(median_mortality_rate,2))
-```
-```{r, fig.width=6}
-varImpPlot(rf.model,type=1)
-```
-# As we can see, there's no need to remove the features with high null value percentages, since Random Forest is a very robust machine learning algorithm #
-
-Plotting some data:
+# Let's look at some of the main features #
 ```{r,fig.width=5}
  plot_chart("Adolescent.fertility.rate..births.per.1.000.women.ages.15.19.","fertelity rate 15-19",c(1990,2010))
 ```
@@ -216,7 +193,7 @@ plot_chart("Age.dependency.ratio..young","Age dependency ratio",c(2000))
 ```
 
 ```{r,fig.width=5}
- plot_chart("Telephone.mainlines..per.1.000.people.","Mortality rate among children under 5 vs Telephone lines per 1,000 people",c(1990,2010))
+ plot_chart("Telephone.mainlines..per.1.000.people.","Telephone lines per 1,000 people",c(1990,2010))
 ```
 
 ```{r,fig.width=5}
@@ -243,37 +220,3 @@ plot_chart("Age.dependency.ratio..young","Age dependency ratio",c(2000))
 (The World Bank, <http://data.worldbank.org/indicator/SL.TLF.CACT.FM.ZS>)
 
 
-len = length(data$Mort_Rate_under_5)
-df <- data.frame(x=c(data$School.enrollment..primary..female....gross.,
-                      data$Ratio.of.female.to.male.labor.force.participation.rate......modeled.ILO.estimate.,
-                      data$Telephone.mainlines..per.1.000.people.,
-                      data$Immunization..Pol3....of.one.year.old.children.,
-                      data$People.practicing.open.defecation..urban....of.urban.population.),
-                    y=rep(data$Mort_Rate_under_5,5), class=c(rep("y1", len), rep("y2", len), rep("y3",len),rep("y4",len), rep("y5",len)))
-ggplot(df, aes(x=x, y=y, color=class)) + geom_point() +     geom_smooth(method="lm",se=FALSE, (aes(color=class)))
-
-
-df2 < african_joined_table_orig.imputed[,c(4,7,8,9)]
-
-ggplot(df2) +
-  geom_jitter(aes(Mort_Rate_under_5,X12th.pillar..Innovation, colour=class),) + 
-  geom_smooth(aes(Mort_Rate_under_5,X2nd.pillar..Infrastructure, colour = class), method=lm) +
-  facet_wrap(~class, scales="free_x") +
-  labs(x = "Percentage cover (%)", y = "Number of individuals (N)")
-
-
-ggplot(df) + 
-  geom_jitter(aes(Mort_Rate_under_5,X12th.pillar..Innovation, colour=class), colour="blue") + geom_smooth(aes(Mort_Rate_under_5,X12th.pillar..Innovation, colour=class), method=lm, se=FALSE) +
-  geom_jitter(aes(y2,x), colour="green") + geom_smooth(aes(y2,x), method=lm, se=FALSE) +
-  geom_jitter(aes(y3,x), colour="red") + geom_smooth(aes(y3,x), method=lm, se=FALSE) +
-  labs(x = "Percentage cover (%)", y = "Number of individuals (N)")
-
-
-ggplot(mtcars2) +
-  geom_jitter(aes(value,mpg, colour=variable),) + geom_smooth(aes(value,mpg, colour=variable), method=lm, se=FALSE) +
-  facet_wrap(~variable, scales="free_x") +
-  labs(x = "Percentage cover (%)", y = "Number of individuals (N)")
-
-
-df <- data.frame(x=rep(x,2), y=c(y1, y2), class=c(rep("y1", 5), rep("y2", 5)))
-length(data$School.enrollment..primary..female....gross.)
