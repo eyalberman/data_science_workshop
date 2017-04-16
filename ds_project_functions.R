@@ -25,7 +25,7 @@ prepare_african_development_df <- function(africa_development) {
   africa_development <- africa_development[, -4]
   names(africa_development) <- gsub("X(\\d+).*", "\\1", names(africa_development))
   africa_development <- africa_development[order(africa_development$Country.Name,africa_development$Series.Name,africa_development$"1966"), ] 
-  africa_development <- distinct(africa_development,Country.Name, Country.Code,Series.Name )
+  africa_development <- distinct(africa_development,Country.Name, Country.Code,Series.Name, .keep_all = TRUE )
   africa_development <- gather(africa_development, 'year', 'value', 4:ncol(africa_development)) %>% 
     spread(Series.Name, value)
   africa_development$year <- as.numeric(paste(africa_development$year))
@@ -37,7 +37,7 @@ prepare_african_development_df <- function(africa_development) {
 plot_chart <- function(field, title, year_vector) {
   data_for_chart <- data.frame(year = as.factor(african_joined_table.imputed$year), country = african_joined_table.imputed$Country, 
   african_joined_table.imputed[field],mortality_rate = african_joined_table.imputed$Mort_Rate_under_5)
-  ggplot(data=data_for_chart %>% filter(year %in% year_vector), aes_string(x = field, y="mortality_rate", group="year")) +
+  ggplot(data=data_for_chart %>% dplyr::filter(year %in% year_vector), aes_string(x = field, y="mortality_rate", group="year")) +
     geom_line(aes(color=year))+
     geom_point(aes(color=year))+
     geom_smooth(method="lm",se=FALSE, (aes(color=year)))+
@@ -64,6 +64,7 @@ create_joined_table <- function() {
   joined_table <- remove_duplicate_columns(joined_table)
   joined_table <- left_join(x = joined_table, y = poverty, by = c("Country.Code" = "Country.Code", "year" = "year"))
   joined_table <- remove_duplicate_columns(joined_table)
+  joined_table <- joined_table[,-grep('Country.Name.x.x',colnames(joined_table))]
   valid_column_names <- make.names(names=names(joined_table), unique=TRUE, allow_ = TRUE)
   names(joined_table) <- valid_column_names
   return(joined_table)
